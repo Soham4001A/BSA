@@ -1,301 +1,345 @@
 import heapq
 import time
 import math
+import functools # For partial application
 
-# --- Grid and Node Utilities ---
+# --- Global Limits ---
+MAX_NODES_TO_EXPLORE_ASTAR = 5_000_000
+MAX_NODES_TO_EXPAND_BEAM = 5_000_000 # Nodes taken from beam to generate successors
+# For Beam search, it might also be beneficial to consider a max_depth if needed, but max_nodes is a good proxy.
+
+# --- Node and Path Utilities ---
 class Node:
     def __init__(self, position, parent=None, g=0, h=0):
-        self.position = position  # (row, col) tuple
-        self.parent = parent      # Parent Node object
-        self.g = g                # Cost from start to current node
-        self.h = h                # Heuristic (estimated cost from current node to end)
-        self.f = g + h            # Total estimated cost: f = g + h
+        self.position = position
+        self.parent = parent
+        self.g = g
+        self.h = h
+        self.f = g + h
 
     def __lt__(self, other):
-        # For priority queue: prioritize lower f-score, then lower h-score (tie-breaker)
         if self.f == other.f:
             return self.h < other.h
         return self.f < other.f
 
     def __eq__(self, other):
-        # Nodes are equal if their positions are equal
         return self.position == other.position
 
     def __hash__(self):
-        # Hash based on position for use in sets
         return hash(self.position)
 
 def heuristic_manhattan(a, b):
-    """Manhattan distance heuristic: |x1-x2| + |y1-y2|"""
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 def reconstruct_path(node):
-    """Trace back from goal node to start node to get the path"""
     path = []
     current = node
     while current:
         path.append(current.position)
         current = current.parent
-    return path[::-1] # Return reversed path (start to goal)
+    return path[::-1]
 
-# --- A* Algorithm ---
-def a_star_search(grid, start_pos, goal_pos, heuristic_func):
+# --- Procedural Obstacle Generation ---
+def get_deterministic_pseudo_random_for_pos(r, c, scenario_seed):
+    # LCG parameters (common ones)
+    a = 1664525
+    lcg_c = 1013904223
+    m = 2**32
+
+    # Slightly more robust mixing - using XOR and more prime multipliers
+    # These are just examples; good hash functions are a deep topic.
+    val_r = r * 2654435761 # Knuth's golden ratio multiplicative hash constant for integers
+    val_c = c * 334214459 # Another prime
+    
+    # Combine components using XOR and addition, then ensure within range
+    # The idea is to make the initial state more sensitive to small changes in r or c
+    initial_state = (val_r ^ val_c ^ scenario_seed) + (val_r + scenario_seed) + (val_c + scenario_seed)
+    initial_state = initial_state & (m - 1)
+
+    # LCG step
+    lcg_val = (a * initial_state + lcg_c) % m
+    return lcg_val / m
+
+def is_obstacle_procedural(position, start_pos, goal_pos, grid_dims, scenario_seed, obstacle_density):
+    """
+    Determines if a position is an obstacle procedurally.
+    Start and goal positions are never obstacles.
+    grid_dims are mainly for conceptual boundaries, not directly used in this obstacle function
+    but are essential for the pathfinding algorithms' bounds checks.
+    """
+    if position == start_pos or position == goal_pos:
+        return False
+
+    r, c = position
+    # Basic check: if outside conceptual grid dims, could be treated as obstacle implicitly by caller,
+    # but this function focuses on the "terrain" type.
+    # if not (0 <= r < grid_dims[0] and 0 <= c < grid_dims[1]):
+    #     return True # Or handle by caller
+
+    random_val = get_deterministic_pseudo_random_for_pos(r, c, scenario_seed)
+    return random_val < obstacle_density
+
+# --- A* Algorithm (adapted for implicit grid) ---
+def a_star_search_implicit(grid_dims, start_pos, goal_pos, heuristic_func, is_obstacle_func, max_nodes_explored_limit):
     start_time = time.perf_counter()
     
     start_node = Node(start_pos, None, 0, heuristic_func(start_pos, goal_pos))
-    goal_node_target_pos = goal_pos # Store the goal position tuple for comparison
     
-    open_set = []  # Priority queue (min-heap) of nodes to visit
+    open_set = []
     heapq.heappush(open_set, start_node)
     
-    # closed_set stores positions of nodes already evaluated
-    closed_set = set() 
-    
-    # g_costs stores the lowest g-cost found so far to reach a position
+    closed_set = set()
     g_costs = {start_pos: 0}
-
-    nodes_explored = 0 # Counter for nodes popped from open_set
+    nodes_explored_count = 0
+    limit_reached = False
 
     while open_set:
+        if nodes_explored_count >= max_nodes_explored_limit:
+            limit_reached = True
+            break
+            
         current_node = heapq.heappop(open_set)
-        nodes_explored += 1
+        nodes_explored_count += 1
 
-        if current_node.position == goal_node_target_pos:
+        if current_node.position == goal_pos:
             path = reconstruct_path(current_node)
             end_time = time.perf_counter()
             return {
                 "path": path,
                 "score": current_node.g,
                 "time": end_time - start_time,
-                "nodes_explored": nodes_explored,
+                "nodes_explored": nodes_explored_count,
+                "limit_reached": False,
                 "algorithm": "A*"
             }
 
         closed_set.add(current_node.position)
 
-        # Explore neighbors (up, down, left, right)
-        for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+        for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]: # Neighbors
             neighbor_pos = (current_node.position[0] + dr, current_node.position[1] + dc)
 
             # Check bounds
-            if not (0 <= neighbor_pos[0] < len(grid) and 0 <= neighbor_pos[1] < len(grid[0])):
+            if not (0 <= neighbor_pos[0] < grid_dims[0] and 0 <= neighbor_pos[1] < grid_dims[1]):
                 continue
             
-            # Check obstacles (1 means obstacle)
-            if grid[neighbor_pos[0]][neighbor_pos[1]] == 1:
+            # Check obstacles using the procedural function
+            if is_obstacle_func(neighbor_pos):
                 continue
-
-            # If neighbor is in closed_set, skip (optimal path already found for consistent heuristic)
+            
             if neighbor_pos in closed_set:
                 continue
             
-            # Cost to move to neighbor is 1 (can be changed for weighted edges)
-            tentative_g_score = current_node.g + 1 
+            tentative_g_score = current_node.g + 1
 
             if tentative_g_score < g_costs.get(neighbor_pos, float('inf')):
-                # This path to neighbor is better than any previous one found
                 g_costs[neighbor_pos] = tentative_g_score
-                h_score = heuristic_func(neighbor_pos, goal_node_target_pos)
+                h_score = heuristic_func(neighbor_pos, goal_pos)
                 neighbor_node = Node(neighbor_pos, current_node, tentative_g_score, h_score)
+                # Check if neighbor_node is already in open_set with higher g_cost is implicitly handled
+                # by heapq behavior or by checking g_costs, but explicit check for presence is more robust for some A* variants.
+                # For this version, pushing and letting g_costs check is fine.
                 heapq.heappush(open_set, neighbor_node)
                 
     end_time = time.perf_counter()
-    # No path found
     return {
         "path": [],
         "score": float('inf'),
         "time": end_time - start_time,
-        "nodes_explored": nodes_explored,
+        "nodes_explored": nodes_explored_count,
+        "limit_reached": limit_reached,
         "algorithm": "A*"
     }
 
-# --- Beam Search with A*-style Pruning ---
-def beam_search_astar_pruning(grid, start_pos, goal_pos, heuristic_func, beam_width):
+# --- Beam Search (adapted for implicit grid) ---
+def beam_search_astar_pruning_implicit(grid_dims, start_pos, goal_pos, heuristic_func, is_obstacle_func, beam_width, max_nodes_expanded_limit):
     start_time = time.perf_counter()
 
     start_node = Node(start_pos, None, 0, heuristic_func(start_pos, goal_pos))
-    goal_node_target_pos = goal_pos
-
-    current_beam = [start_node] # List of nodes in the current beam
     
-    # visited_g_costs stores the best g-score found to reach a position by the beam search so far
-    # This prevents exploring redundant or worse paths to already visited states.
+    current_beam = [start_node]
     visited_g_costs = {start_pos: start_node.g} 
+    nodes_expanded_total = 0
+    limit_reached = False
     
-    nodes_expanded_total = 0 # Counts nodes from which successors are generated
+    # Max depth can be an additional safeguard, e.g., sum of dimensions
+    max_depth = grid_dims[0] + grid_dims[1] # A loose upper bound for path length
 
-    # Limit search depth to avoid infinite loops in case of no solution or tricky maps
-    max_depth = len(grid) * len(grid[0]) 
-
-    for _ in range(max_depth): # Loop for each level/depth
+    for depth in range(max_depth): 
         if not current_beam:
-            break # Beam is empty, no path found
+            break
+        if nodes_expanded_total >= max_nodes_expanded_limit :
+            limit_reached = True
+            break
 
-        candidates = [] # Potential nodes for the next beam
+        candidates = []
         nodes_expanded_this_step = 0
 
         for current_node in current_beam:
-            nodes_expanded_this_step += 1
+            if nodes_expanded_total + nodes_expanded_this_step >= max_nodes_expanded_limit:
+                limit_reached = True # Check before expanding this node's children
+                break # Break from processing nodes in current_beam
 
-            if current_node.position == goal_node_target_pos:
+            nodes_expanded_this_step +=1
+
+            if current_node.position == goal_pos:
                 path = reconstruct_path(current_node)
                 end_time = time.perf_counter()
-                nodes_expanded_total += nodes_expanded_this_step # Add expansions from this final step
+                nodes_expanded_total += nodes_expanded_this_step
                 return {
                     "path": path,
                     "score": current_node.g,
                     "time": end_time - start_time,
-                    "nodes_explored": nodes_expanded_total,
+                    "nodes_explored": nodes_expanded_total, # "explored" here means nodes from which successors were generated
+                    "limit_reached": False,
                     "algorithm": f"Beam Search (W={beam_width})"
                 }
 
-            # Explore neighbors
             for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 neighbor_pos = (current_node.position[0] + dr, current_node.position[1] + dc)
 
-                if not (0 <= neighbor_pos[0] < len(grid) and 0 <= neighbor_pos[1] < len(grid[0])):
+                if not (0 <= neighbor_pos[0] < grid_dims[0] and 0 <= neighbor_pos[1] < grid_dims[1]):
                     continue
-                if grid[neighbor_pos[0]][neighbor_pos[1]] == 1: # Obstacle
+                if is_obstacle_func(neighbor_pos):
                     continue
 
                 tentative_g_score = current_node.g + 1
                 
-                # If we've found a path to this neighbor before that was equally good or better, skip.
                 if tentative_g_score >= visited_g_costs.get(neighbor_pos, float('inf')):
                     continue
 
-                # Update the best g-cost to reach this neighbor
                 visited_g_costs[neighbor_pos] = tentative_g_score
-                h_score = heuristic_func(neighbor_pos, goal_node_target_pos)
+                h_score = heuristic_func(neighbor_pos, goal_pos)
                 neighbor_node = Node(neighbor_pos, current_node, tentative_g_score, h_score)
                 candidates.append(neighbor_node)
         
         nodes_expanded_total += nodes_expanded_this_step
+        if limit_reached: # If limit was hit while generating successors
+            break
 
         if not candidates:
-            break # No valid successors found from the current beam
+            break
 
-        # Sort all candidates by f-score (A*-style evaluation)
-        candidates.sort() 
-        
-        # Prune to beam_width
+        candidates.sort()
         current_beam = candidates[:beam_width]
         
-        if not current_beam: # If beam becomes empty after pruning
+        if not current_beam:
             break
             
     end_time = time.perf_counter()
-    # No path found or max depth reached
     return {
         "path": [],
         "score": float('inf'),
         "time": end_time - start_time,
         "nodes_explored": nodes_expanded_total,
+        "limit_reached": limit_reached,
         "algorithm": f"Beam Search (W={beam_width})"
     }
 
-# --- Scenarios Definition ---
-# 0: traversable, 1: obstacle
+# --- Scenarios Definition for Implicit Grids (previous ones + new test) ---
+HUGE_DIM = 500_000
+# MAX_NODES_TO_EXPLORE_ASTAR = 200_000 # Defined in your script
+# MAX_NODES_TO_EXPAND_BEAM = 200_000  # Defined in your script
+
 scenarios = [
     {
-        "name": "Simple Case",
-        "grid": [
-            [0, 0, 0, 0, 0],
-            [0, 1, 0, 1, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0]
-        ],
+        "name": "Zero Obstacle Test (Derived from S1)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
         "start": (0, 0),
-        "goal": (4, 4)
+        "goal": (50, 50),
+        "scenario_seed": 123, # Same seed as S1
+        "obstacle_density": 0.0 # CRITICAL CHANGE FOR THIS TEST
     },
     {
-        "name": "Moderate Case (U-shape)",
-        "grid": [
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 1, 1, 1, 1, 1, 0], # Wall
-            [0, 1, 0, 0, 0, 1, 0], # Path
-            [0, 1, 0, 1, 0, 1, 0], # Obstacles
-            [0, 0, 0, 1, 0, 0, 0], # Start here (4,0)
-            [0, 1, 1, 1, 1, 1, 0], # Wall
-            [0, 0, 0, 0, 0, 0, 0]  # Goal here (6,6)
-        ],
-        "start": (4, 0),
-        "goal": (6, 6)
-    },
-    {
-        "name": "Large Grid with Obstacles",
-        "grid": [
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], 
-            [0, 1, 1, 0, 1, 0, 1, 1, 1, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [1, 1, 1, 0, 1, 1, 1, 1, 0, 1],
-            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0], 
-            [0, 1, 1, 1, 1, 1, 0, 1, 1, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 1, 0],
-            [0, 1, 1, 0, 1, 0, 1, 0, 1, 0],
-            [0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
-            [0, 1, 0, 0, 1, 0, 0, 0, 1, 0] 
-        ],
+        "name": "Relatively Short Path in Huge Grid (Original S1)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
         "start": (0, 0),
-        "goal": (9,9) 
+        "goal": (50, 50),
+        "scenario_seed": 123,
+        "obstacle_density": 0.1
     },
     {
-        "name": "No Path Case",
-        "grid": [
-            [0, 0, 0],
-            [0, 1, 1], # Wall blocking direct access
-            [0, 1, 0],
-            [1, 1, 0], # Start can't reach Goal
-            [0, 0, 0]  # Goal
-        ],
-        "start": (0,0),
-        "goal": (4,2)
+        "name": "Medium Path, Higher Obstacle Density (Original S2)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (1000, 1000),
+        "goal": (1200, 1250),
+        "scenario_seed": 456,
+        "obstacle_density": 0.25
+    },
+    {
+        "name": "Longer Path Attempt (Original S3)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (0, 0),
+        "goal": (800, 800),
+        "scenario_seed": 789,
+        "obstacle_density": 0.15
+    },
+    {
+        "name": "Potentially No Path (Dense Small Area) (Original S4)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (5000, 5000),
+        "goal": (5020, 5020),
+        "scenario_seed": 101,
+        "obstacle_density": 0.6,
     }
 ]
 
 # --- Run and Print Results ---
-BEAM_WIDTH = 3 # Experiment with this value (e.g., 1, 2, 3, 5)
+BEAM_WIDTH = 8
 
 for i, scenario_data in enumerate(scenarios):
     print(f"--- Scenario {i+1}: {scenario_data['name']} ---")
-    grid = scenario_data['grid']
+    dims = scenario_data['grid_dims']
     start = scenario_data['start']
     goal = scenario_data['goal']
+    seed = scenario_data['scenario_seed']
+    density = scenario_data['obstacle_density']
 
-    print(f"Grid Dimensions: {len(grid)}x{len(grid[0])}, Start: {start}, Goal: {goal}")
-    
+    print(f"Grid Dimensions: {dims[0]}x{dims[1]}, Start: {start}, Goal: {goal}")
+    print(f"Obstacle Density: {density*100}%, Scenario Seed: {seed}")
+    print(f"A* Node Limit: {MAX_NODES_TO_EXPLORE_ASTAR}, Beam Search Node Limit: {MAX_NODES_TO_EXPAND_BEAM}, Beam Width: {BEAM_WIDTH}")
+
+    current_is_obstacle_func = functools.partial(is_obstacle_procedural,
+                                                 start_pos=start,
+                                                 goal_pos=goal,
+                                                 grid_dims=dims,
+                                                 scenario_seed=seed,
+                                                 obstacle_density=density)
+
     # Run A*
-    results_astar = a_star_search(grid, start, goal, heuristic_manhattan)
+    results_astar = a_star_search_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, MAX_NODES_TO_EXPLORE_ASTAR)
     print(f"\n[{results_astar['algorithm']} Results]")
     print(f"  Path Found: {'Yes' if results_astar['path'] else 'No'}")
     if results_astar['path']:
         print(f"  Path Score (Cost): {results_astar['score']}")
-        # print(f"  Path: {results_astar['path']}") # Uncomment to see the path
     print(f"  Nodes Explored: {results_astar['nodes_explored']}")
     print(f"  Wall Clock Time: {results_astar['time']:.6f} seconds")
+    if results_astar['limit_reached']:
+        print(f"  Termination: Max nodes explored limit ({MAX_NODES_TO_EXPLORE_ASTAR}) reached.")
 
     # Run Beam Search
-    results_beam = beam_search_astar_pruning(grid, start, goal, heuristic_manhattan, BEAM_WIDTH)
+    results_beam = beam_search_astar_pruning_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, BEAM_WIDTH, MAX_NODES_TO_EXPAND_BEAM)
     print(f"\n[{results_beam['algorithm']} Results]")
     print(f"  Path Found: {'Yes' if results_beam['path'] else 'No'}")
     if results_beam['path']:
         print(f"  Path Score (Cost): {results_beam['score']}")
-        # print(f"  Path: {results_beam['path']}") # Uncomment to see the path
-    print(f"  Nodes Explored (expanded from beam): {results_beam['nodes_explored']}")
+    print(f"  Nodes Expanded from Beam: {results_beam['nodes_explored']}")
     print(f"  Wall Clock Time: {results_beam['time']:.6f} seconds")
+    if results_beam['limit_reached']:
+        print(f"  Termination: Max nodes expanded limit ({MAX_NODES_TO_EXPAND_BEAM}) reached.")
     
-    # Comparison note
+    # Comparison note (same as before)
     if results_astar['path'] and results_beam['path']:
         if results_astar['score'] < results_beam['score']:
-            print("  Note: A* found a better (shorter/cheaper) path than Beam Search.")
+            print("  Comparison: A* found a better (shorter/cheaper) path.")
         elif results_beam['score'] < results_astar['score']:
-             print("  Note: Beam Search found a better path than A* (this shouldn't happen if A* is optimal and uses same heuristic).") # Should not happen
-        elif results_astar['score'] == results_beam['score']:
-             print("  Note: Both algorithms found paths of the same quality.")
+             print("  Comparison: Beam Search found a better path (A* might have hit limit or Beam got lucky).")
+        else: 
+             print("  Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).")
     elif results_astar['path'] and not results_beam['path']:
-        print("  Note: A* found a path, but Beam Search did not.")
+        print("  Comparison: A* found a path, but Beam Search did not (possibly due to pruning or hitting limit).")
     elif not results_astar['path'] and results_beam['path']:
-         print("  Note: Beam Search found a path, but A* did not (this shouldn't happen if A* is complete).") # Should not happen for solvable paths
+         print("  Comparison: Beam Search found a path, but A* did not (A* might have hit its limit earlier on a wider search).")
+    elif not results_astar['path'] and not results_beam['path']:
+        print("  Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).")
 
-    print("\n" + "="*40 + "\n")
+    print("\n" + "="*50 + "\n")

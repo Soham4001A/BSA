@@ -1,7 +1,7 @@
 import heapq
 import time
-import math
-import functools # For partial application
+import functools
+import csv
 
 # --- Global Limits ---
 MAX_NODES_TO_EXPLORE_ASTAR = 5_000_000
@@ -242,104 +242,254 @@ HUGE_DIM = 500_000
 
 scenarios = [
     {
-        "name": "Zero Obstacle Test (Derived from S1)",
-        "grid_dims": (HUGE_DIM, HUGE_DIM),
-        "start": (0, 0),
-        "goal": (50, 50),
-        "scenario_seed": 123, # Same seed as S1
-        "obstacle_density": 0.0 # CRITICAL CHANGE FOR THIS TEST
-    },
-    {
-        "name": "Relatively Short Path in Huge Grid (Original S1)",
+        "name": "1. Zero Obstacle Test (Short Path)",
         "grid_dims": (HUGE_DIM, HUGE_DIM),
         "start": (0, 0),
         "goal": (50, 50),
         "scenario_seed": 123,
-        "obstacle_density": 0.1
+        "obstacle_density": 0.0,
+        "beam_widths_to_test": [8] # Basic test, expect optimal
     },
     {
-        "name": "Medium Path, Higher Obstacle Density (Original S2)",
-        "grid_dims": (HUGE_DIM, HUGE_DIM),
-        "start": (1000, 1000),
-        "goal": (1200, 1250),
-        "scenario_seed": 456,
-        "obstacle_density": 0.25
-    },
-    {
-        "name": "Longer Path Attempt (Original S3)",
+        "name": "2. Relatively Short Path, Low Density", # Was Original S1
         "grid_dims": (HUGE_DIM, HUGE_DIM),
         "start": (0, 0),
-        "goal": (800, 800),
-        "scenario_seed": 789,
-        "obstacle_density": 0.15
+        "goal": (50, 50),
+        "scenario_seed": 123, # Same map as above, but with obstacles
+        "obstacle_density": 0.1,
+        "beam_widths_to_test": [8, 16]
     },
     {
-        "name": "Potentially No Path (Dense Small Area) (Original S4)",
+        "name": "3. Medium Path, Moderate Density", # Was Original S2
         "grid_dims": (HUGE_DIM, HUGE_DIM),
-        "start": (5000, 5000),
-        "goal": (5020, 5020),
-        "scenario_seed": 101,
+        "start": (1000, 1000),
+        "goal": (1200, 1250), # Manhattan distance 250 + 250 = 500
+        "scenario_seed": 456,
+        "obstacle_density": 0.25,
+        "beam_widths_to_test": [8, 16]
+    },
+    {
+        "name": "4. Longer Path - BEAM WIDTH COMPARISON", # Was Original S3
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (0, 0),
+        "goal": (800, 800), # Manhattan distance 1600
+        "scenario_seed": 789,
+        "obstacle_density": 0.15,
+        "beam_widths_to_test": [8, 16, 32, 64] # Explicitly test multiple widths
+    },
+    {
+        "name": "5. Medium Path, Higher Density ", # Was User's S4
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (2500, 2000),
+        "goal": (2700, 2200), # Manhattan distance 200 + 200 = 400
+        "scenario_seed": 101, # Seed previously used for dense, using again
+        "obstacle_density": 0.4,
+        "beam_widths_to_test": [8, 16]
+    },
+    {
+        "name": "6. Long Path, Very High Density (Likely No Path)", # Was User's S5
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (4000, 4000),
+        "goal": (4500, 4500), # Manhattan distance 1000. Changed from 6020,6020 to make it a bit more reasonable to analyze if a path IS found.
+        "scenario_seed": 110, # New seed for this specific high-density test
         "obstacle_density": 0.6,
+        "beam_widths_to_test": [8] # High density, likely fails or is very slow
+    },
+    {
+        "name": "7. Very Long Path, Extreme Density (Almost Certainly No Path)", # Was User's S6
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (0, 1000),
+        "goal": (3000, 2000), # Manhattan distance 3000 + 1000 = 4000
+        "scenario_seed": 120, # New seed
+        "obstacle_density": 0.75,
+        "beam_widths_to_test": [8] # Expect failure or limit hit
+    },
+    {
+        "name": "8. Very Long Sparse Path",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (0,0),
+        "goal": (2000, 2000), # Manhattan distance 4000
+        "scenario_seed": 201,
+        "obstacle_density": 0.05, # Very sparse
+        "beam_widths_to_test": [8, 16, 32] # Might need wider beam for good quality on long paths
+    },
+    {
+        "name": "9. Moderate Path, Extremely Low Density",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (100,100),
+        "goal": (1000,1000), # Manhattan distance 1800
+        "scenario_seed": 301,
+        "obstacle_density": 0.01, # Almost open space
+        "beam_widths_to_test": [8, 16]
+    },
+    {
+        "name": "10. Forced Node Limit Test (Diagonal Max Distance)",
+        "grid_dims": (HUGE_DIM, HUGE_DIM), # This grid is too large to traverse fully
+        "start": (0,0),
+        "goal": (HUGE_DIM -100_000, HUGE_DIM -100_000), # Goal is very far, but not literally edge to avoid overflow/extreme H
+        "scenario_seed": 401,
+        "obstacle_density": 0.1, # Moderate density
+        "beam_widths_to_test": [8] # Expect to hit node limits
+    },
+    {
+        "name": "11. Short Path, High Density Challenge",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (0,0),
+        "goal": (30,30), # Manhattan distance 60
+        "scenario_seed": 506, # New seed
+        "obstacle_density": 0.35, # Challenging density for short path
+        "beam_widths_to_test": [8, 16, 32]
+    },
+    {
+        "name": "12. Another Medium Path, Different Seed/Density",
+        "grid_dims": (HUGE_DIM, HUGE_DIM),
+        "start": (500, 0),
+        "goal": (500, 500), # Straight line path of 500 if clear
+        "scenario_seed": 601,
+        "obstacle_density": 0.20,
+        "beam_widths_to_test": [8, 16]
     }
 ]
 
 # --- Run and Print Results ---
 BEAM_WIDTH = 8
 
-for i, scenario_data in enumerate(scenarios):
-    print(f"--- Scenario {i+1}: {scenario_data['name']} ---")
-    dims = scenario_data['grid_dims']
-    start = scenario_data['start']
-    goal = scenario_data['goal']
-    seed = scenario_data['scenario_seed']
-    density = scenario_data['obstacle_density']
+# --- Main Run and Logging Logic ---
+CSV_LOG_FILE_NAME = "pathfinding_results.csv"
+TEXT_LOG_FILE_NAME = "pathfinding_verbose_log.txt"
 
-    print(f"Grid Dimensions: {dims[0]}x{dims[1]}, Start: {start}, Goal: {goal}")
-    print(f"Obstacle Density: {density*100}%, Scenario Seed: {seed}")
-    print(f"A* Node Limit: {MAX_NODES_TO_EXPLORE_ASTAR}, Beam Search Node Limit: {MAX_NODES_TO_EXPAND_BEAM}, Beam Width: {BEAM_WIDTH}")
+CSV_HEADER = [
+    "Scenario_Name", "Grid_Dims", "Start_Pos", "Goal_Pos", "Scenario_Seed", "Obstacle_Density",
+    "Algorithm", "Beam_Width", "Path_Found", "Path_Score", "Nodes_Processed", "Time_s", "Limit_Reached"
+]
 
-    current_is_obstacle_func = functools.partial(is_obstacle_procedural,
-                                                 start_pos=start,
-                                                 goal_pos=goal,
-                                                 grid_dims=dims,
-                                                 scenario_seed=seed,
-                                                 obstacle_density=density)
+# Open both log files
+with open(CSV_LOG_FILE_NAME, 'w', newline='') as csv_log_file, \
+     open(TEXT_LOG_FILE_NAME, 'w') as text_log_file:
 
-    # Run A*
-    results_astar = a_star_search_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, MAX_NODES_TO_EXPLORE_ASTAR)
-    print(f"\n[{results_astar['algorithm']} Results]")
-    print(f"  Path Found: {'Yes' if results_astar['path'] else 'No'}")
-    if results_astar['path']:
-        print(f"  Path Score (Cost): {results_astar['score']}")
-    print(f"  Nodes Explored: {results_astar['nodes_explored']}")
-    print(f"  Wall Clock Time: {results_astar['time']:.6f} seconds")
-    if results_astar['limit_reached']:
-        print(f"  Termination: Max nodes explored limit ({MAX_NODES_TO_EXPLORE_ASTAR}) reached.")
+    csv_writer = csv.writer(csv_log_file)
+    csv_writer.writerow(CSV_HEADER) # Write the CSV header
 
-    # Run Beam Search
-    results_beam = beam_search_astar_pruning_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, BEAM_WIDTH, MAX_NODES_TO_EXPAND_BEAM)
-    print(f"\n[{results_beam['algorithm']} Results]")
-    print(f"  Path Found: {'Yes' if results_beam['path'] else 'No'}")
-    if results_beam['path']:
-        print(f"  Path Score (Cost): {results_beam['score']}")
-    print(f"  Nodes Expanded from Beam: {results_beam['nodes_explored']}")
-    print(f"  Wall Clock Time: {results_beam['time']:.6f} seconds")
-    if results_beam['limit_reached']:
-        print(f"  Termination: Max nodes expanded limit ({MAX_NODES_TO_EXPAND_BEAM}) reached.")
-    
-    # Comparison note (same as before)
-    if results_astar['path'] and results_beam['path']:
-        if results_astar['score'] < results_beam['score']:
-            print("  Comparison: A* found a better (shorter/cheaper) path.")
-        elif results_beam['score'] < results_astar['score']:
-             print("  Comparison: Beam Search found a better path (A* might have hit limit or Beam got lucky).")
-        else: 
-             print("  Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).")
-    elif results_astar['path'] and not results_beam['path']:
-        print("  Comparison: A* found a path, but Beam Search did not (possibly due to pruning or hitting limit).")
-    elif not results_astar['path'] and results_beam['path']:
-         print("  Comparison: Beam Search found a path, but A* did not (A* might have hit its limit earlier on a wider search).")
-    elif not results_astar['path'] and not results_beam['path']:
-        print("  Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).")
+    def write_to_console_and_text_log(message):
+        """Helper function to print to console and write to text log."""
+        print(message)
+        text_log_file.write(message + "\n")
 
-    print("\n" + "="*50 + "\n")
+    write_to_console_and_text_log(f"Starting experiments. CSV results logged to {CSV_LOG_FILE_NAME}, Verbose log to {TEXT_LOG_FILE_NAME}")
+
+    for i, scenario_data in enumerate(scenarios):
+        scenario_name = scenario_data['name']
+        dims = scenario_data['grid_dims']
+        start = scenario_data['start']
+        goal = scenario_data['goal']
+        seed = scenario_data['scenario_seed']
+        density = scenario_data['obstacle_density']
+        beam_widths_to_test = scenario_data['beam_widths_to_test']
+
+        # --- Scenario Header ---
+        scenario_header_text = f"\n--- Scenario {i+1}: {scenario_name} ---"
+        write_to_console_and_text_log(scenario_header_text)
+        
+        details_text = (
+            f"  Grid Dimensions: {dims[0]}x{dims[1]}, Start: {start}, Goal: {goal}\n"
+            f"  Obstacle Density: {density*100:.1f}%, Scenario Seed: {seed}\n"
+            f"  A* Node Limit: {MAX_NODES_TO_EXPLORE_ASTAR}, Beam Search Node Limit: {MAX_NODES_TO_EXPAND_BEAM}"
+        ) # Note: Beam width is per-run for Beam Search
+        write_to_console_and_text_log(details_text)
+
+        current_is_obstacle_func = functools.partial(is_obstacle_procedural,
+                                                     start_pos=start,
+                                                     goal_pos=goal,
+                                                     grid_dims=dims,
+                                                     scenario_seed=seed,
+                                                     obstacle_density=density)
+
+        # --- Run A* ---
+        write_to_console_and_text_log(f"\n  Running A*...")
+        results_astar = a_star_search_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, MAX_NODES_TO_EXPLORE_ASTAR)
+        
+        # Log A* results to CSV
+        log_row_astar = [
+            scenario_name, f"{dims[0]}x{dims[1]}", str(start), str(goal), seed, f"{density:.2f}",
+            results_astar['algorithm'], "N/A",
+            "Yes" if results_astar['path'] else "No",
+            results_astar['score'] if results_astar['path'] else "N/A",
+            results_astar['nodes_explored'],
+            f"{results_astar['time']:.6f}",
+            "Yes" if results_astar['limit_reached'] else "No"
+        ]
+        csv_writer.writerow(log_row_astar)
+
+        # Write A* results to text log
+        astar_text_log = (
+            f"    [{results_astar['algorithm']} Results]\n"
+            f"      Path Found: {'Yes' if results_astar['path'] else 'No'}\n"
+        )
+        if results_astar['path']:
+            astar_text_log += f"      Path Score (Cost): {results_astar['score']}\n"
+        astar_text_log += (
+            f"      Nodes Explored: {results_astar['nodes_explored']}\n"
+            f"      Wall Clock Time: {results_astar['time']:.6f} seconds\n"
+        )
+        if results_astar['limit_reached']:
+            astar_text_log += f"      Termination: Max nodes explored limit ({MAX_NODES_TO_EXPLORE_ASTAR}) reached.\n"
+        write_to_console_and_text_log(astar_text_log)
+
+
+        # --- Run Beam Search for each specified width ---
+        for beam_width_val in beam_widths_to_test:
+            write_to_console_and_text_log(f"\n  Running Beam Search (W={beam_width_val})...")
+            results_beam = beam_search_astar_pruning_implicit(dims, start, goal, heuristic_manhattan, current_is_obstacle_func, beam_width_val, MAX_NODES_TO_EXPAND_BEAM)
+            
+            # Log Beam Search results to CSV
+            log_row_beam = [
+                scenario_name, f"{dims[0]}x{dims[1]}", str(start), str(goal), seed, f"{density:.2f}",
+                results_beam['algorithm'], 
+                beam_width_val,
+                "Yes" if results_beam['path'] else "No",
+                results_beam['score'] if results_beam['path'] else "N/A",
+                results_beam['nodes_explored'],
+                f"{results_beam['time']:.6f}",
+                "Yes" if results_beam['limit_reached'] else "No"
+            ]
+            csv_writer.writerow(log_row_beam)
+
+            # Write Beam Search results to text log
+            beam_text_log = (
+                f"    [{results_beam['algorithm']} Results]\n"
+                f"      Path Found: {'Yes' if results_beam['path'] else 'No'}\n"
+            )
+            if results_beam['path']:
+                beam_text_log += f"      Path Score (Cost): {results_beam['score']}\n"
+            beam_text_log += (
+                f"      Nodes Expanded from Beam: {results_beam['nodes_explored']}\n"
+                f"      Wall Clock Time: {results_beam['time']:.6f} seconds\n"
+            )
+            if results_beam['limit_reached']:
+                beam_text_log += f"      Termination: Max nodes expanded limit ({MAX_NODES_TO_EXPAND_BEAM}) reached.\n"
+            write_to_console_and_text_log(beam_text_log)
+
+            # --- Comparison Note (for text log only) ---
+            comparison_text = "      Comparison: "
+            if results_astar['path'] and results_beam['path']:
+                if results_astar['score'] < results_beam['score']:
+                    comparison_text += "A* found a better (shorter/cheaper) path."
+                elif results_beam['score'] < results_astar['score']:
+                    comparison_text += "Beam Search found a better path (A* might have hit limit or Beam got lucky)."
+                else: 
+                    comparison_text += "Both algorithms found paths of the same quality (or both hit limits similarly)."
+            elif results_astar['path'] and not results_beam['path']:
+                comparison_text += "A* found a path, but Beam Search did not (possibly due to pruning or hitting limit)."
+            elif not results_astar['path'] and results_beam['path']:
+                comparison_text += "Beam Search found a path, but A* did not (A* might have hit its limit earlier on a wider search)."
+            elif not results_astar['path'] and not results_beam['path']:
+                comparison_text += "Neither algorithm found a path (possibly no path exists, or both hit limits)."
+            write_to_console_and_text_log(comparison_text)
+        
+        write_to_console_and_text_log("\n" + "="*60 + "\n") # Scenario separator
+        
+        # Flush buffers to ensure data is written, especially for long runs
+        csv_log_file.flush()
+        text_log_file.flush()
+
+    write_to_console_and_text_log(f"\nAll scenarios processed. CSV log: {CSV_LOG_FILE_NAME}, Verbose log: {TEXT_LOG_FILE_NAME}")

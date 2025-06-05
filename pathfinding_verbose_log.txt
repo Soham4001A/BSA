@@ -1,0 +1,405 @@
+Starting experiments. CSV results logged to pathfinding_results.csv, Verbose log to pathfinding_verbose_log.txt
+
+--- Scenario 1: 1. Zero Obstacle Test (Short Path) ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (50, 50)
+  Obstacle Density: 0.0%, Scenario Seed: 123
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 100
+      Nodes Explored: 101
+      Wall Clock Time: 0.001028 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 100
+      Nodes Expanded from Beam: 773
+      Wall Clock Time: 0.006981 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+============================================================
+
+
+--- Scenario 2: 2. Relatively Short Path, Low Density ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (50, 50)
+  Obstacle Density: 10.0%, Scenario Seed: 123
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 100
+      Nodes Explored: 362
+      Wall Clock Time: 0.006052 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 102
+      Nodes Expanded from Beam: 767
+      Wall Clock Time: 0.005988 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 100
+      Nodes Expanded from Beam: 1430
+      Wall Clock Time: 0.016082 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+============================================================
+
+
+--- Scenario 3: 3. Medium Path, Moderate Density ---
+  Grid Dimensions: 500000x500000, Start: (1000, 1000), Goal: (1200, 1250)
+  Obstacle Density: 25.0%, Scenario Seed: 456
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 450
+      Nodes Explored: 1550
+      Wall Clock Time: 0.017570 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 470
+      Nodes Expanded from Beam: 3528
+      Wall Clock Time: 0.031249 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 452
+      Nodes Expanded from Beam: 6714
+      Wall Clock Time: 0.057803 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+============================================================
+
+
+--- Scenario 4: 4. Longer Path - BEAM WIDTH COMPARISON ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (800, 800)
+  Obstacle Density: 15.0%, Scenario Seed: 789
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 1600
+      Nodes Explored: 38683
+      Wall Clock Time: 0.443967 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 1666
+      Nodes Expanded from Beam: 13029
+      Wall Clock Time: 0.101387 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 1656
+      Nodes Expanded from Beam: 25685
+      Wall Clock Time: 0.318338 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=32)...
+    [Beam Search (W=32) Results]
+      Path Found: Yes
+      Path Score (Cost): 1634
+      Nodes Expanded from Beam: 50334
+      Wall Clock Time: 0.432853 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=64)...
+    [Beam Search (W=64) Results]
+      Path Found: Yes
+      Path Score (Cost): 1616
+      Nodes Expanded from Beam: 98763
+      Wall Clock Time: 0.813208 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+============================================================
+
+
+--- Scenario 5: 5. Medium Path, Higher Density  ---
+  Grid Dimensions: 500000x500000, Start: (2500, 2000), Goal: (2700, 2200)
+  Obstacle Density: 40.0%, Scenario Seed: 101
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: No
+      Nodes Explored: 5000000
+      Wall Clock Time: 78.123896 seconds
+      Termination: Max nodes explored limit (5000000) reached.
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: No
+      Nodes Expanded from Beam: 162
+      Wall Clock Time: 0.002208 seconds
+
+      Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: No
+      Nodes Expanded from Beam: 255
+      Wall Clock Time: 0.002823 seconds
+
+      Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).
+
+============================================================
+
+
+--- Scenario 6: 6. Long Path, Very High Density (Likely No Path) ---
+  Grid Dimensions: 500000x500000, Start: (4000, 4000), Goal: (4500, 4500)
+  Obstacle Density: 60.0%, Scenario Seed: 110
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: No
+      Nodes Explored: 8
+      Wall Clock Time: 0.000107 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: No
+      Nodes Expanded from Beam: 8
+      Wall Clock Time: 0.000119 seconds
+
+      Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).
+
+============================================================
+
+
+--- Scenario 7: 7. Very Long Path, Extreme Density (Almost Certainly No Path) ---
+  Grid Dimensions: 500000x500000, Start: (0, 1000), Goal: (3000, 2000)
+  Obstacle Density: 75.0%, Scenario Seed: 120
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: No
+      Nodes Explored: 6
+      Wall Clock Time: 0.000083 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: No
+      Nodes Expanded from Beam: 6
+      Wall Clock Time: 0.000069 seconds
+
+      Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).
+
+============================================================
+
+
+--- Scenario 8: 8. Very Long Sparse Path ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (2000, 2000)
+  Obstacle Density: 5.0%, Scenario Seed: 201
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 4000
+      Nodes Explored: 118349
+      Wall Clock Time: 1.529834 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 4056
+      Nodes Expanded from Beam: 32364
+      Wall Clock Time: 0.256143 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 4040
+      Nodes Expanded from Beam: 64310
+      Wall Clock Time: 0.543318 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=32)...
+    [Beam Search (W=32) Results]
+      Path Found: Yes
+      Path Score (Cost): 4034
+      Nodes Expanded from Beam: 127946
+      Wall Clock Time: 0.912387 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+============================================================
+
+
+--- Scenario 9: 9. Moderate Path, Extremely Low Density ---
+  Grid Dimensions: 500000x500000, Start: (100, 100), Goal: (1000, 1000)
+  Obstacle Density: 1.0%, Scenario Seed: 301
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 1800
+      Nodes Explored: 6302
+      Wall Clock Time: 0.066870 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 1804
+      Nodes Expanded from Beam: 14422
+      Wall Clock Time: 0.111934 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 1800
+      Nodes Expanded from Beam: 28762
+      Wall Clock Time: 0.208517 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+============================================================
+
+
+--- Scenario 10: 10. Forced Node Limit Test (Diagonal Max Distance) ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (400000, 400000)
+  Obstacle Density: 10.0%, Scenario Seed: 401
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: No
+      Nodes Explored: 5000000
+      Wall Clock Time: 76.007062 seconds
+      Termination: Max nodes explored limit (5000000) reached.
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: No
+      Nodes Expanded from Beam: 5000000
+      Wall Clock Time: 38.124952 seconds
+      Termination: Max nodes expanded limit (5000000) reached.
+
+      Comparison: Neither algorithm found a path (possibly no path exists, or both hit limits).
+
+============================================================
+
+
+--- Scenario 11: 11. Short Path, High Density Challenge ---
+  Grid Dimensions: 500000x500000, Start: (0, 0), Goal: (30, 30)
+  Obstacle Density: 35.0%, Scenario Seed: 506
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 72
+      Nodes Explored: 450
+      Wall Clock Time: 0.003361 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 72
+      Nodes Expanded from Beam: 432
+      Wall Clock Time: 0.002983 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 72
+      Nodes Expanded from Beam: 669
+      Wall Clock Time: 0.005604 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+  Running Beam Search (W=32)...
+    [Beam Search (W=32) Results]
+      Path Found: Yes
+      Path Score (Cost): 72
+      Nodes Expanded from Beam: 888
+      Wall Clock Time: 0.007166 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+============================================================
+
+
+--- Scenario 12: 12. Another Medium Path, Different Seed/Density ---
+  Grid Dimensions: 500000x500000, Start: (500, 0), Goal: (500, 500)
+  Obstacle Density: 20.0%, Scenario Seed: 601
+  A* Node Limit: 5000000, Beam Search Node Limit: 5000000
+
+  Running A*...
+    [A* Results]
+      Path Found: Yes
+      Path Score (Cost): 578
+      Nodes Explored: 23419
+      Wall Clock Time: 0.235029 seconds
+
+
+  Running Beam Search (W=8)...
+    [Beam Search (W=8) Results]
+      Path Found: Yes
+      Path Score (Cost): 590
+      Nodes Expanded from Beam: 4543
+      Wall Clock Time: 0.033468 seconds
+
+      Comparison: A* found a better (shorter/cheaper) path.
+
+  Running Beam Search (W=16)...
+    [Beam Search (W=16) Results]
+      Path Found: Yes
+      Path Score (Cost): 578
+      Nodes Expanded from Beam: 8734
+      Wall Clock Time: 0.087163 seconds
+
+      Comparison: Both algorithms found paths of the same quality (or both hit limits similarly).
+
+============================================================
+
+
+All scenarios processed. CSV log: pathfinding_results.csv, Verbose log: pathfinding_verbose_log.txt

@@ -1,0 +1,37 @@
+Scenario_Name,Grid_Dims,Start_Pos,Goal_Pos,Scenario_Seed,Obstacle_Density,Algorithm,Beam_Width,Path_Found,Path_Score,Nodes_Processed,Time_s,Limit_Reached
+1. Zero Obstacle Test (Short Path),500000x500000,"(0, 0)","(50, 50)",123,0.00,A*,N/A,Yes,100,101,0.001028,No
+1. Zero Obstacle Test (Short Path),500000x500000,"(0, 0)","(50, 50)",123,0.00,Beam Search (W=8),8,Yes,100,773,0.006981,No
+"2. Relatively Short Path, Low Density",500000x500000,"(0, 0)","(50, 50)",123,0.10,A*,N/A,Yes,100,362,0.006052,No
+"2. Relatively Short Path, Low Density",500000x500000,"(0, 0)","(50, 50)",123,0.10,Beam Search (W=8),8,Yes,102,767,0.005988,No
+"2. Relatively Short Path, Low Density",500000x500000,"(0, 0)","(50, 50)",123,0.10,Beam Search (W=16),16,Yes,100,1430,0.016082,No
+"3. Medium Path, Moderate Density",500000x500000,"(1000, 1000)","(1200, 1250)",456,0.25,A*,N/A,Yes,450,1550,0.017570,No
+"3. Medium Path, Moderate Density",500000x500000,"(1000, 1000)","(1200, 1250)",456,0.25,Beam Search (W=8),8,Yes,470,3528,0.031249,No
+"3. Medium Path, Moderate Density",500000x500000,"(1000, 1000)","(1200, 1250)",456,0.25,Beam Search (W=16),16,Yes,452,6714,0.057803,No
+4. Longer Path - BEAM WIDTH COMPARISON,500000x500000,"(0, 0)","(800, 800)",789,0.15,A*,N/A,Yes,1600,38683,0.443967,No
+4. Longer Path - BEAM WIDTH COMPARISON,500000x500000,"(0, 0)","(800, 800)",789,0.15,Beam Search (W=8),8,Yes,1666,13029,0.101387,No
+4. Longer Path - BEAM WIDTH COMPARISON,500000x500000,"(0, 0)","(800, 800)",789,0.15,Beam Search (W=16),16,Yes,1656,25685,0.318338,No
+4. Longer Path - BEAM WIDTH COMPARISON,500000x500000,"(0, 0)","(800, 800)",789,0.15,Beam Search (W=32),32,Yes,1634,50334,0.432853,No
+4. Longer Path - BEAM WIDTH COMPARISON,500000x500000,"(0, 0)","(800, 800)",789,0.15,Beam Search (W=64),64,Yes,1616,98763,0.813208,No
+"5. Medium Path, Higher Density ",500000x500000,"(2500, 2000)","(2700, 2200)",101,0.40,A*,N/A,No,N/A,5000000,78.123896,Yes
+"5. Medium Path, Higher Density ",500000x500000,"(2500, 2000)","(2700, 2200)",101,0.40,Beam Search (W=8),8,No,N/A,162,0.002208,No
+"5. Medium Path, Higher Density ",500000x500000,"(2500, 2000)","(2700, 2200)",101,0.40,Beam Search (W=16),16,No,N/A,255,0.002823,No
+"6. Long Path, Very High Density (Likely No Path)",500000x500000,"(4000, 4000)","(4500, 4500)",110,0.60,A*,N/A,No,N/A,8,0.000107,No
+"6. Long Path, Very High Density (Likely No Path)",500000x500000,"(4000, 4000)","(4500, 4500)",110,0.60,Beam Search (W=8),8,No,N/A,8,0.000119,No
+"7. Very Long Path, Extreme Density (Almost Certainly No Path)",500000x500000,"(0, 1000)","(3000, 2000)",120,0.75,A*,N/A,No,N/A,6,0.000083,No
+"7. Very Long Path, Extreme Density (Almost Certainly No Path)",500000x500000,"(0, 1000)","(3000, 2000)",120,0.75,Beam Search (W=8),8,No,N/A,6,0.000069,No
+8. Very Long Sparse Path,500000x500000,"(0, 0)","(2000, 2000)",201,0.05,A*,N/A,Yes,4000,118349,1.529834,No
+8. Very Long Sparse Path,500000x500000,"(0, 0)","(2000, 2000)",201,0.05,Beam Search (W=8),8,Yes,4056,32364,0.256143,No
+8. Very Long Sparse Path,500000x500000,"(0, 0)","(2000, 2000)",201,0.05,Beam Search (W=16),16,Yes,4040,64310,0.543318,No
+8. Very Long Sparse Path,500000x500000,"(0, 0)","(2000, 2000)",201,0.05,Beam Search (W=32),32,Yes,4034,127946,0.912387,No
+"9. Moderate Path, Extremely Low Density",500000x500000,"(100, 100)","(1000, 1000)",301,0.01,A*,N/A,Yes,1800,6302,0.066870,No
+"9. Moderate Path, Extremely Low Density",500000x500000,"(100, 100)","(1000, 1000)",301,0.01,Beam Search (W=8),8,Yes,1804,14422,0.111934,No
+"9. Moderate Path, Extremely Low Density",500000x500000,"(100, 100)","(1000, 1000)",301,0.01,Beam Search (W=16),16,Yes,1800,28762,0.208517,No
+10. Forced Node Limit Test (Diagonal Max Distance),500000x500000,"(0, 0)","(400000, 400000)",401,0.10,A*,N/A,No,N/A,5000000,76.007062,Yes
+10. Forced Node Limit Test (Diagonal Max Distance),500000x500000,"(0, 0)","(400000, 400000)",401,0.10,Beam Search (W=8),8,No,N/A,5000000,38.124952,Yes
+"11. Short Path, High Density Challenge",500000x500000,"(0, 0)","(30, 30)",506,0.35,A*,N/A,Yes,72,450,0.003361,No
+"11. Short Path, High Density Challenge",500000x500000,"(0, 0)","(30, 30)",506,0.35,Beam Search (W=8),8,Yes,72,432,0.002983,No
+"11. Short Path, High Density Challenge",500000x500000,"(0, 0)","(30, 30)",506,0.35,Beam Search (W=16),16,Yes,72,669,0.005604,No
+"11. Short Path, High Density Challenge",500000x500000,"(0, 0)","(30, 30)",506,0.35,Beam Search (W=32),32,Yes,72,888,0.007166,No
+"12. Another Medium Path, Different Seed/Density",500000x500000,"(500, 0)","(500, 500)",601,0.20,A*,N/A,Yes,578,23419,0.235029,No
+"12. Another Medium Path, Different Seed/Density",500000x500000,"(500, 0)","(500, 500)",601,0.20,Beam Search (W=8),8,Yes,590,4543,0.033468,No
+"12. Another Medium Path, Different Seed/Density",500000x500000,"(500, 0)","(500, 500)",601,0.20,Beam Search (W=16),16,Yes,578,8734,0.087163,No
